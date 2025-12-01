@@ -1,0 +1,15 @@
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Environment and credentials
+config/.env.local
+
+# User-specific storage states and screenshots
+*-storageState.json
+*-after-login.png

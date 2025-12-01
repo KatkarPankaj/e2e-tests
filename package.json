@@ -1,0 +1,17 @@
+{
+  "name": "nutrient-workflow_e2e",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@azure/identity": "^4.13.0",
+    "@azure/playwright": "^1.0.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.7.2",
+    "dotenv": "^17.2.3"
+  }
+}
