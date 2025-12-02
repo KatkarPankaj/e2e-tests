@@ -7,92 +7,105 @@ on:
     branches: [main, master]
 
 permissions:
-  id-token: write     # Required for Azure OIDC login
+  id-token: write       # Required for Azure OIDC login
   contents: read
 
 jobs:
   test:
-    timeout-minutes: 60
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
-      # Checkout the code
+      # ---------------------------
+      # Checkout repository
+      # ---------------------------
       - uses: actions/checkout@v4
 
-      # Login to Azure (Microsoft Entra ID / OIDC)
+      # ---------------------------
+      # Login to Azure using OIDC
+      # ---------------------------
       - name: Login to Azure using OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true
 
-      # Debug Azure login and environment (does not print secrets)
-      - name: Debug Azure login & env
+      # ---------------------------
+      # OPTIONAL Debug Access / RBAC
+      # ---------------------------
+      - name: Debug Azure account
         run: |
           echo "=== az account show ==="
-          az account show --output json || true
+          az account show --output json
 
-          echo "=== az account get-access-token (management) ==="
-          # We intentionally don't print the token itself; just check that we can request one
-          if az account get-access-token --resource https://management.azure.com/ --output json >/dev/null 2>&1; then
-            echo "access-token: AVAILABLE"
-          else
-            echo "access-token: UNAVAILABLE"
-          fi
-
-          echo "=== Playwright-related env vars present (names only) ==="
-          env | grep PLAYWRIGHT || true
-
-      - name: List role assignments for service principal (table)
+      - name: List role assignments (JSON)
         run: |
-          echo "Listing role assignments for the client id in use (table view, may be empty)"
-          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output table || true
+          echo "=== Role assignments ==="
+          az role assignment list \
+            --assignee ${{ secrets.AZURE_CLIENT_ID }} \
+            --output json
 
-      - name: List role assignments for service principal (json)
-        run: |
-          echo "Listing role assignments for the client id in use (json view)"
-          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output json || true
-
-      # Optionally create a workspace-scoped role assignment. This step is gated
-      # and only runs when the secret ALLOW_ROLE_ASSIGN is set to 'true' and the
-      # PLAYWRIGHT_WORKSPACE_RESOURCE_ID secret is provided. This prevents
-      # accidental privilege changes and keeps the operation opt-in.
-      - name: Create workspace-scoped role assignment (guarded)
+      # ---------------------------
+      # OPTIONAL Workspace-scoped role assignment
+      # ---------------------------
+      - name: Create workspace-scoped role assignment
         env:
           ALLOW_ROLE_ASSIGN: ${{ secrets.ALLOW_ROLE_ASSIGN }}
           PLAYWRIGHT_WORKSPACE_RESOURCE_ID: ${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           if [ "$ALLOW_ROLE_ASSIGN" = "true" ] && [ -n "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" ]; then
-            echo "Creating Playwright Workspace Contributor role assignment on workspace: $PLAYWRIGHT_WORKSPACE_RESOURCE_ID"
-            az role assignment create --assignee "$AZURE_CLIENT_ID" --role "Playwright Workspace Contributor" --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" || echo "role assignment create failed or already exists"
-            echo "Verifying assignment"
-            az role assignment list --assignee "$AZURE_CLIENT_ID" --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" --output table || true
+            echo "Assigning Playwright Workspace Contributor on workspace..."
+            az role assignment create \
+              --assignee "$AZURE_CLIENT_ID" \
+              --role "Playwright Workspace Contributor" \
+              --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" || true
+
+            echo "Verifying..."
+            az role assignment list \
+              --assignee "$AZURE_CLIENT_ID" \
+              --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" \
+              --output table
           else
-            echo "Skipping workspace role assignment because ALLOW_ROLE_ASSIGN is not 'true' or PLAYWRIGHT_WORKSPACE_RESOURCE_ID is empty"
+            echo "Skipping workspace role assignment."
           fi
 
+      # ---------------------------
+      # Get Playwright Access Token 
+      # *** REQUIRED ***
+      # ---------------------------
+      - name: Get Playwright access token
+        run: |
+          token=$(az account get-access-token \
+            --resource https://playwright.microsoft.com \
+            --query accessToken -o tsv)
+          echo "PLAYWRIGHT_ACCESS_TOKEN=$token" >> $GITHUB_ENV
 
-      # Install dependencies
+      # ---------------------------
+      # Install Dependencies
+      # ---------------------------
       - name: Install dependencies
         run: npm ci
 
-      # Run Playwright tests on Playwright Workspaces
+      # ---------------------------
+      # Run Playwright Tests via Playwright Workspaces
+      # ---------------------------
       - name: Run Playwright tests
         env:
           PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}
-          # Provide client and tenant ids so the Azure Playwright SDK can use Entra ID auth
           PLAYWRIGHT_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           PLAYWRIGHT_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          PLAYWRIGHT_ACCESS_TOKEN: ${{ env.PLAYWRIGHT_ACCESS_TOKEN }}
         run: npx playwright test -c playwright.service.config.ts --workers=20
 
-      # Upload HTML test report
+      # ---------------------------
+      # Upload Playwright Report
+      # ---------------------------
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
-          path: ./playwright-report/ 
+          path: ./playwright-report/
           retention-days: 10
