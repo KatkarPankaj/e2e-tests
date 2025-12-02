@@ -38,7 +38,7 @@ jobs:
           PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}
           PLAYWRIGHT_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           PLAYWRIGHT_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          PLAYWRIGHT_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          PLAYWRIGHT_CLIENT_SECRET: ${{ secrets.PLAYWRIGHT_SERVICE_ACCESS_TOKEN }}
         run: npx playwright test -c playwright.service.config.ts --workers=20
 
       # Upload HTML test report
