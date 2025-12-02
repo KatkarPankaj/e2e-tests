@@ -60,12 +60,19 @@ jobs:
       # PLAYWRIGHT_WORKSPACE_RESOURCE_ID secret is provided. This prevents
       # accidental privilege changes and keeps the operation opt-in.
       - name: Create workspace-scoped role assignment (guarded)
-        if: ${{ secrets.ALLOW_ROLE_ASSIGN == 'true' && secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID != '' }}
+        env:
+          ALLOW_ROLE_ASSIGN: ${{ secrets.ALLOW_ROLE_ASSIGN }}
+          PLAYWRIGHT_WORKSPACE_RESOURCE_ID: ${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
-          echo "Creating Playwright Workspace Contributor role assignment on workspace: ${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}"
-          az role assignment create --assignee ${{ secrets.AZURE_CLIENT_ID }} --role "Playwright Workspace Contributor" --scope "${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}" || echo "role assignment create failed or already exists"
-          echo "Verifying assignment"
-          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --scope "${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}" --output table || true
+          if [ "$ALLOW_ROLE_ASSIGN" = "true" ] && [ -n "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" ]; then
+            echo "Creating Playwright Workspace Contributor role assignment on workspace: $PLAYWRIGHT_WORKSPACE_RESOURCE_ID"
+            az role assignment create --assignee "$AZURE_CLIENT_ID" --role "Playwright Workspace Contributor" --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" || echo "role assignment create failed or already exists"
+            echo "Verifying assignment"
+            az role assignment list --assignee "$AZURE_CLIENT_ID" --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" --output table || true
+          else
+            echo "Skipping workspace role assignment because ALLOW_ROLE_ASSIGN is not 'true' or PLAYWRIGHT_WORKSPACE_RESOURCE_ID is empty"
+          fi
 
 
       # Install dependencies
