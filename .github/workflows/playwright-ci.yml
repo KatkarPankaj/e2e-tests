@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 permissions:
-  id-token: write       # Required for Azure OIDC login
+  id-token: write
   contents: read
 
 jobs:
@@ -16,14 +16,10 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      # ---------------------------
-      # Checkout repository
-      # ---------------------------
+      # Checkout code
       - uses: actions/checkout@v4
 
-      # ---------------------------
       # Login to Azure using OIDC
-      # ---------------------------
       - name: Login to Azure using OIDC
         uses: azure/login@v2
         with:
@@ -31,24 +27,17 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # ---------------------------
-      # OPTIONAL Debug Access / RBAC
-      # ---------------------------
+      # Optional: Debug Azure login
       - name: Debug Azure account
         run: |
-          echo "=== az account show ==="
           az account show --output json
 
-      - name: List role assignments (JSON)
+      # Optional: List role assignments
+      - name: List role assignments
         run: |
-          echo "=== Role assignments ==="
-          az role assignment list \
-            --assignee ${{ secrets.AZURE_CLIENT_ID }} \
-            --output json
+          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output table
 
-      # ---------------------------
-      # OPTIONAL Workspace-scoped role assignment
-      # ---------------------------
+      # Optional: Assign workspace-scoped role
       - name: Create workspace-scoped role assignment
         env:
           ALLOW_ROLE_ASSIGN: ${{ secrets.ALLOW_ROLE_ASSIGN }}
@@ -56,52 +45,33 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           if [ "$ALLOW_ROLE_ASSIGN" = "true" ] && [ -n "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" ]; then
-            echo "Assigning Playwright Workspace Contributor on workspace..."
             az role assignment create \
               --assignee "$AZURE_CLIENT_ID" \
               --role "Playwright Workspace Contributor" \
               --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" || true
-
-            echo "Verifying..."
-            az role assignment list \
-              --assignee "$AZURE_CLIENT_ID" \
-              --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" \
-              --output table
-          else
-            echo "Skipping workspace role assignment."
           fi
 
-      # ---------------------------
-      # Get Playwright Access Token 
-      # *** REQUIRED ***
-      # ---------------------------
+      # Get Playwright access token (correct audience)
       - name: Get Playwright access token
         run: |
           token=$(az account get-access-token \
-            --resource https://playwright.microsoft.com \
+            --resource api://playwrightservice.microsoft.com \
             --query accessToken -o tsv)
           echo "PLAYWRIGHT_ACCESS_TOKEN=$token" >> $GITHUB_ENV
+          echo "Token length: ${#token}"
 
-      # ---------------------------
-      # Install Dependencies
-      # ---------------------------
+      # Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # ---------------------------
-      # Run Playwright Tests via Playwright Workspaces
-      # ---------------------------
+      # Run Playwright tests
       - name: Run Playwright tests
         env:
           PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}
-          PLAYWRIGHT_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          PLAYWRIGHT_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           PLAYWRIGHT_ACCESS_TOKEN: ${{ env.PLAYWRIGHT_ACCESS_TOKEN }}
         run: npx playwright test -c playwright.service.config.ts --workers=20
 
-      # ---------------------------
-      # Upload Playwright Report
-      # ---------------------------
+      # Upload Playwright report
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
