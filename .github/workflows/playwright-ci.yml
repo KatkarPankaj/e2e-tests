@@ -30,12 +30,12 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        working-directory: ./e2e-tests   # UPDATE THIS FOLDER
+        working-directory: e2e-tests   # UPDATE THIS FOLDER
         run: npm ci
 
       # Run Playwright tests on Playwright Workspaces
       - name: Run Playwright tests
-        working-directory: ./e2e-tests   # UPDATE THIS FOLDER
+        working-directory: e2e-tests   # UPDATE THIS FOLDER
         env:
           PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}
         run: npx playwright test -c playwright.service.config.ts --workers=20
