@@ -23,7 +23,6 @@ export default defineConfig(
     exposeNetwork: '<loopback>',
     connectTimeout: 3 * 50 * 1000, // 3 minutes
     os: ServiceOS.LINUX,
-    serviceAuthType: ServiceAuth.ENTRA_ID,
     credential: new DefaultAzureCredential()
   })
 );
