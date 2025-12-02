@@ -49,6 +49,7 @@ jobs:
         run: |
           token=$(az account get-access-token \
             --resource api://playwrightservice.microsoft.com \
+            --tenant ${{ secrets.PLAYWRIGHT_TENANT_ID }}
             --query accessToken -o tsv)
           echo "PLAYWRIGHT_ACCESS_TOKEN=$token" >> $GITHUB_ENV
           echo "Token length: ${#token}"
