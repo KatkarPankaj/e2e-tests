@@ -8,7 +8,7 @@ export default defineConfig(
   config,
   createAzurePlaywrightConfig(config, {
     exposeNetwork: '<loopback>',
-    connectTimeout: 3 * 30 * 1000, // 3 minutes
+    connectTimeout: 3 * 40 * 1000, // 3 minutes
     os: ServiceOS.LINUX,
     credential: new DefaultAzureCredential(),
     serviceAuthType: ServiceAuth.ACCESS_TOKEN
