@@ -23,6 +23,8 @@ export default defineConfig(
     exposeNetwork: '<loopback>',
     connectTimeout: 3 * 50 * 1000, // 3 minutes
     os: ServiceOS.LINUX,
+    // Use Microsoft Entra ID for authentication and supply the Azure credential.
+    serviceAuthType: ServiceAuth.ENTRA_ID,
     credential: new DefaultAzureCredential()
   })
 );

@@ -55,6 +55,18 @@ jobs:
           echo "Listing role assignments for the client id in use (json view)"
           az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output json || true
 
+      # Optionally create a workspace-scoped role assignment. This step is gated
+      # and only runs when the secret ALLOW_ROLE_ASSIGN is set to 'true' and the
+      # PLAYWRIGHT_WORKSPACE_RESOURCE_ID secret is provided. This prevents
+      # accidental privilege changes and keeps the operation opt-in.
+      - name: Create workspace-scoped role assignment (guarded)
+        if: ${{ secrets.ALLOW_ROLE_ASSIGN == 'true' && secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID != '' }}
+        run: |
+          echo "Creating Playwright Workspace Contributor role assignment on workspace: ${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}"
+          az role assignment create --assignee ${{ secrets.AZURE_CLIENT_ID }} --role "Playwright Workspace Contributor" --scope "${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}" || echo "role assignment create failed or already exists"
+          echo "Verifying assignment"
+          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --scope "${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}" --output table || true
+
 
       # Install dependencies
       - name: Install dependencies
