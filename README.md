@@ -23,7 +23,7 @@ Edit `config/.env.local` and fill in your credentials:
 ```env
 TEST_USERNAME=your.email@nutrient.io
 TEST_PASSWORD=your_password_here
-BASE_URL=https://plus-qa.integrify.com
+BASE_URL=
 LOGIN_TIMEOUT=50000
 ```
 
