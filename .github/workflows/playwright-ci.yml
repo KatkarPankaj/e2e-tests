@@ -7,75 +7,31 @@ on:
     branches: [main, master]
 
 permissions:
-  id-token: write
+  id-token: write       # Required for GitHub OIDC
   contents: read
 
 jobs:
-  test:
+  e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+
+    env:
+      PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}  # Your workspace WS endpoint
+      PLAYWRIGHT_TENANT_ID: ${{ secrets.PLAYWRIGHT_TENANT_ID }}      # Playwright-provided tenant ID
 
     steps:
       # Checkout code
       - uses: actions/checkout@v4
 
-      # Login to Azure using OIDC
-      - name: Login to Azure using OIDC
-        uses: azure/login@v2
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      # Optional: Debug Azure login
-      - name: Debug Azure account
-        run: |
-          az account show --output json
-
-      # Optional: List role assignments
-      - name: List role assignments
-        run: |
-          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output table
-
-      # Optional: Assign workspace-scoped role
-      - name: Create workspace-scoped role assignment
-        env:
-          ALLOW_ROLE_ASSIGN: ${{ secrets.ALLOW_ROLE_ASSIGN }}
-          PLAYWRIGHT_WORKSPACE_RESOURCE_ID: ${{ secrets.PLAYWRIGHT_WORKSPACE_RESOURCE_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        run: |
-          if [ "$ALLOW_ROLE_ASSIGN" = "true" ] && [ -n "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" ]; then
-            az role assignment create \
-              --assignee "$AZURE_CLIENT_ID" \
-              --role "Playwright Workspace Contributor" \
-              --scope "$PLAYWRIGHT_WORKSPACE_RESOURCE_ID" || true
-          fi
-
-      # Get Playwright access token (correct audience)
-      - name: Get Playwright access token
-        run: |
-          token=$(az account get-access-token \
-            --resource api://playwrightservice.microsoft.com \
-            --query accessToken -o tsv)
-          echo "PLAYWRIGHT_ACCESS_TOKEN=$token" >> $GITHUB_ENV
-          echo "Token length: ${#token}"
+          node-version: 20
 
       # Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # Run Playwright tests
-      - name: Run Playwright tests
-        env:
-          PLAYWRIGHT_SERVICE_URL: ${{ secrets.PLAYWRIGHT_SERVICE_URL }}
-          PLAYWRIGHT_ACCESS_TOKEN: ${{ env.PLAYWRIGHT_ACCESS_TOKEN }}
-        run: npx playwright test -c playwright.service.config.ts --workers=20
-
-      # Upload Playwright report
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: ./playwright-report/
-          retention-days: 10
+      # Get Playwright access token from Playwright-managed tenant
+      - name: Get Playwright a
