@@ -28,6 +28,24 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: true
 
+      # Debug Azure login and environment (does not print secrets)
+      - name: Debug Azure login & env
+        run: |
+          echo "=== az account show ==="
+          az account show --output json || true
+
+          echo "=== az account get-access-token (management) ==="
+          # We intentionally don't print the token itself; just check that we can request one
+          if az account get-access-token --resource https://management.azure.com/ --output json >/dev/null 2>&1; then
+            echo "access-token: AVAILABLE"
+          else
+            echo "access-token: UNAVAILABLE"
+          fi
+
+          echo "=== Playwright-related env vars present (names only) ==="
+          env | grep PLAYWRIGHT || true
+
+
       # Install dependencies
       - name: Install dependencies
         run: npm ci
