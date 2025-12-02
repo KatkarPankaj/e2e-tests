@@ -45,6 +45,16 @@ jobs:
           echo "=== Playwright-related env vars present (names only) ==="
           env | grep PLAYWRIGHT || true
 
+      - name: List role assignments for service principal (table)
+        run: |
+          echo "Listing role assignments for the client id in use (table view, may be empty)"
+          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output table || true
+
+      - name: List role assignments for service principal (json)
+        run: |
+          echo "Listing role assignments for the client id in use (json view)"
+          az role assignment list --assignee ${{ secrets.AZURE_CLIENT_ID }} --output json || true
+
 
       # Install dependencies
       - name: Install dependencies
