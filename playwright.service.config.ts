@@ -1,30 +1,15 @@
 import { defineConfig } from '@playwright/test';
-import base from './playwright.config';
+import { createAzurePlaywrightConfig, ServiceOS } from '@azure/playwright';
+import { DefaultAzureCredential } from '@azure/identity';
+import config from './playwright.config';
 
-/**
- * Normalize service URL to wss:// if https:// is provided
- */
-const normalizeWs = (url?: string) => {
-  if (!url) return undefined;
-  if (url.startsWith('ws://') || url.startsWith('wss://')) return url;
-  return url.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-};
-
-const wsEndpoint = normalizeWs(process.env.PLAYWRIGHT_SERVICE_URL);
-if (!wsEndpoint) throw new Error('PLAYWRIGHT_SERVICE_URL is missing or invalid');
-
-const token = process.env.PLAYWRIGHT_ACCESS_TOKEN;
-if (!token) throw new Error('PLAYWRIGHT_ACCESS_TOKEN is missing');
-
-export default defineConfig({
-  ...base,
-  use: {
-    ...base.use,
-    connectOptions: {
-      wsEndpoint,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  },
-});
+/* Learn more about service configuration at https://aka.ms/pww/docs/config */
+export default defineConfig(
+  config,
+  createAzurePlaywrightConfig(config, {
+    exposeNetwork: '<loopback>',
+    connectTimeout: 3 * 60 * 1000, // 3 minutes
+    os: ServiceOS.LINUX,
+    credential: new DefaultAzureCredential(),
+  })
+);
